@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Baccarat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="table">
+    <header class="dealer">
+      <div class="dealer-avatar">🎩</div>
+      <div>
+        <div class="dealer-name" id="usernameLbl">Dealer</div>
+        <div class="dealer-msg" id="dealerMsg">Đang tải...</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-size:13px;opacity:0.7;">Ví xu</div>
+        <div id="balance" style="font-size:22px;font-weight:800;color:#c9a227;">0</div>
+      </div>
+    </header>
+
+    <div id="timerBar" style="height:6px;background:#222;border-radius:6px;margin-top:12px;overflow:hidden;">
+      <div id="timerFill" style="height:100%;width:100%;background:linear-gradient(90deg,#c9a227,#eab308);transition:width 0.1s linear;"></div>
+    </div>
+    <div style="text-align:center;margin-top:6px;font-size:13px;opacity:0.8;">
+      Phiên kết thúc sau <span id="timerText">25</span>s
+    </div>
+
+    <section class="board">
+      <div class="hand"><h2>Player <span id="playerScore">0</span></h2><div class="cards" id="playerCards"></div></div>
+      <div class="vs">VS</div>
+      <div class="hand"><h2>Banker <span id="bankerScore">0</span></h2><div class="cards" id="bankerCards"></div></div>
+    </section>
+
+    <section class="result" id="result"></section>
+
+    <section class="controls" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;">
+      <input id="betAmount" type="number" min="1" value="100"
+        style="width:120px;padding:12px;border-radius:10px;border:none;font-size:16px;text-align:center;" />
+      <button class="bet player" data-bet="player">Player x2</button>
+      <button class="bet tie" data-bet="tie">Tie x9</button>
+      <button class="bet banker" data-bet="banker">Banker x1.95</button>
+    </section>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+      <section>
+        <h3 style="color:#c9a227;margin-bottom:8px;">📜 Lịch sử cược</h3>
+        <div id="history" style="max-height:220px;overflow-y:auto;font-size:13px;background:rgba(0,0,0,0.25);border-radius:10px;padding:8px;"></div>
+      </section>
+      <section>
+        <h3 style="color:#c9a227;margin-bottom:8px;">💸 Lịch sử nhận/chuyển xu</h3>
+        <div id="transfers" style="max-height:220px;overflow-y:auto;font-size:13px;background:rgba(0,0,0,0.25);border-radius:10px;padding:8px;"></div>
+      </section>
+    </div>
+
+    <div style="text-align:right;margin-top:12px;">
+      <button id="logoutBtn" style="background:none;border:1px solid #666;color:#ccc;padding:8px 14px;border-radius:8px;cursor:pointer;">Đăng xuất</button>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
