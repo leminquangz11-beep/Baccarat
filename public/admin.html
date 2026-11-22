@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="table" style="max-width:1100px;">
+    <h1 style="color:#c9a227;margin-bottom:6px;">🛠️ Trang quản trị</h1>
+    <p id="adminMsg" style="font-size:13px;opacity:0.75;margin-bottom:16px;"></p>
+
+    <!-- FORM CHUYỂN XU -->
+    <section style="background:rgba(0,0,0,0.3);border:1px solid #c9a227;border-radius:12px;padding:16px;margin-bottom:20px;">
+      <h2 style="font-size:16px;color:#c9a227;margin-bottom:12px;">💸 Chuyển xu cho user</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="txUser" style="padding:10px;border-radius:8px;border:none;min-width:180px;">
+          <option value="">-- Chọn user --</option>
+        </select>
+        <input id="txAmount" type="number" min="1" placeholder="Số xu" 
+          style="padding:10px;border-radius:8px;border:none;width:140px;" />
+        <input id="txNote" placeholder="Ghi chú (tùy chọn)" 
+          style="padding:10px;border-radius:8px;border:none;flex:1;min-width:160px;" />
+        <button id="txBtn" 
+          style="padding:10px 20px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-weight:700;cursor:pointer;">
+          Chuyển
+        </button>
+      </div>
+      <p id="txMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></p>
+    </section>
+
+    <!-- NGƯỜI DÙNG -->
+    <h2 style="font-size:16px;color:#c9a227;margin:16px 0 8px;">👥 Người dùng</h2>
+    <div id="users" style="max-height:300px;overflow-y:auto;background:rgba(0,0,0,0.25);border-radius:10px;padding:8px;"></div>
+
+    <!-- LỊCH SỬ CHUYỂN XU -->
+    <h2 style="font-size:16px;color:#c9a227;margin:20px 0 8px;">💸 Lịch sử chuyển xu (100 gần nhất)</h2>
+    <div id="transfers" style="max-height:280px;overflow-y:auto;background:rgba(0,0,0,0.25);border-radius:10px;padding:8px;font-size:13px;"></div>
+
+    <!-- LỊCH SỬ CƯỢC -->
+    <h2 style="font-size:16px;color:#c9a227;margin:20px 0 8px;">🎲 100 cược gần nhất</h2>
+    <div id="bets" style="max-height:350px;overflow-y:auto;background:rgba(0,0,0,0.25);border-radius:10px;padding:8px;font-size:13px;"></div>
+
+    <div style="margin-top:16px;text-align:right;">
+      <button id="logoutBtn" style="background:none;border:1px solid #666;color:#ccc;padding:8px 14px;border-radius:8px;cursor:pointer;">Đăng xuất</button>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    async function init() {
+      const me = await fetch('/api/me', { credentials: 'include' });
+      if (!me.ok) return location.href = 'login.html';
+      const u = await me.json();
+      if (!u.is_admin) {
+        $('adminMsg').textContent = 'Bạn không phải admin. Quay lại trang chơi.';
+        setTimeout(() => location.href = 'index.html', 2000);
+        return;
+      }
+      $('adminMsg').textContent = `Xin chào admin: ${u.username}`;
+      loadUsers();
+      loadTransfers();
+      loadBets();
+    }
+
+    // ---------- Form chuyển xu ----------
+    $('txBtn').onclick = async () => {
+      const toUserId = $('txUser').value;
+      const amount = parseInt($('txAmount').value);
+      const note = $('txNote').value.trim();
+      const msgEl = $('txMsg');
+
+      if (!toUserId || !amount || amount <= 0) {
+        msgEl.style.color = '#f87171';
+        msgEl.textContent = '⚠️ Chọn user và nhập số xu > 0.';
+        return;
+      }
+
+      $('txBtn').disabled = true;
+      try {
+        const r = await fetch('/api/admin/transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ toUserId: parseInt(toUserId), amount, note })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          msgEl.style.color = '#f87171';
+          msgEl.textContent = '❌ ' + data.error;
+        } else {
+          msgEl.style.color = '#4ade80';
+          msgEl.textContent =
+            `✅ Đã chuyển ${data.transferred.toLocaleString('vi-VN')} xu cho ${data.to}. ` +
+            `Admin còn ${data.adminBalance.toLocaleString('vi-VN')} xu, ${data.to} có ${data.userBalance.toLocaleString('vi-VN')} xu.`;
+          $('txAmount').value = '';
+          $('txNote').value = '';
+          loadUsers();
+          loadTransfers();
+        }
+      } catch (e) {
+        msgEl.style.color = '#f87171';
+        msgEl.textContent = '❌ Lỗi kết nối';
+      } finally {
+        $('txBtn').disabled = false;
+      }
+    };
+
+    // ---------- Danh sách user ----------
+    async function loadUsers() {
+      const r = await fetch('/api/admin/users', { credentials: 'include' });
+      const users = await r.json();
+
+      // Đổ vào select
+      const sel = $('txUser');
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="">-- Chọn user --</option>' +
+        users.filter(u => !u.is_admin).map(u =>
+          `<option value="${u.id}">${u.username} (${u.balance.toLocaleString('vi-VN')} xu)</option>`
+        ).join('');
+      sel.value = currentVal;
+
+      // Đổ vào danh sách
+      $('users').innerHTML = users.map(u => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.08);">
+          <span style="width:140px;">${u.username}${u.is_admin ? ' 👑' : ''}</span>
+          <span style="flex:1;color:#c9a227;">${u.balance.toLocaleString('vi-VN')} xu</span>
+          <input type="number" min="0" value="${u.balance}" data-id="${u.id}"
+            style="width:110px;padding:6px;border-radius:6px;border:none;text-align:center;" />
+          <button data-set="${u.id}" style="padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:#fff;cursor:pointer;">Đặt</button>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('button[data-set]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.set;
+          const input = document.querySelector(`input[data-id="${id}"]`);
+          const r = await fetch('/api/admin/set-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ userId: parseInt(id), balance: parseInt(input.value) })
+          });
+          if (r.ok) loadUsers();
+        };
+      });
+    }
+
+    // ---------- Lịch sử chuyển xu ----------
+    async function loadTransfers() {
+      const r = await fetch('/api/admin/transfers', { credentials: 'include' });
+      const rows = await r.json();
+      if (!rows.length) {
+        $('transfers').innerHTML = '<div style="opacity:0.6;text-align:center;padding:8px;">Chưa có giao dịch.</div>';
+        return;
+      }
+      $('transfers').innerHTML = rows.map(t => `
+        <div style="display:grid;grid-template-columns: 90px 100px 1fr 80px 1fr;gap:6px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <span>${t.created_at.slice(5,16)}</span>
+          <span>${t.from_name}</span>
+          <span>→ ${t.to_name}</span>
+          <span style="color:#4ade80;text-align:right;font-weight:700;">+${t.amount}</span>
+          <span style="opacity:0.7;">${t.note || ''}</span>
+        </div>
+      `).join('');
+    }
+
+    // ---------- Lịch sử cược ----------
+    async function loadBets() {
+      const r = await fetch('/api/admin/bets', { credentials: 'include' });
+      const rows = await r.json();
+      $('bets').innerHTML = rows.map(b => `
+        <div style="display:grid;grid-template-columns: 90px 100px 1fr 70px 70px 80px;gap:6px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <span>${b.created_at.slice(5,16)}</span>
+          <span>${b.username}</span>
+          <span>${b.bet_side.toUpperCase()} ${b.amount}</span>
+          <span>P${b.player_score}</span>
+          <span>B${b.banker_score}</span>
+          <span style="color:${b.payout>0?'#4ade80':'#f87171'};text-align:right;">${b.payout>0?'+'+b.payout:'-'+b.amount}</span>
+        </div>
+      `).join('');
+    }
+
+    $('logoutBtn').onclick = async () => {
+      await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+      location.href = 'login.html';
+    };
+
+    init();
+  </script>
+</body>
+</html>
