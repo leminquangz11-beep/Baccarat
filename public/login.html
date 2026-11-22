@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Đăng nhập - Baccarat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="table" style="max-width:400px;">
+    <h1 style="color:#c9a227;text-align:center;margin-bottom:20px;">🎴 Baccarat</h1>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="tabLogin" class="bet player" style="flex:1;">Đăng nhập</button>
+      <button id="tabRegister" class="bet" style="flex:1;background:#555;">Đăng ký</button>
+    </div>
+    <input id="username" placeholder="Tên đăng nhập" style="width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:none;" />
+    <input id="password" type="password" placeholder="Mật khẩu" style="width:100%;padding:12px;margin-bottom:14px;border-radius:8px;border:none;" />
+    <button id="submitBtn" class="bet player" style="width:100%;">Đăng nhập</button>
+    <p id="msg" style="text-align:center;margin-top:12px;color:#f87171;font-size:14px;"></p>
+    <p style="text-align:center;margin-top:16px;font-size:13px;opacity:0.7;">
+      <a href="admin.html" style="color:#c9a227;">Trang admin →</a>
+    </p>
+  </div>
+  <script>
+    let mode = 'login';
+    const $ = id => document.getElementById(id);
+
+    $('tabLogin').onclick = () => {
+      mode = 'login';
+      $('tabLogin').style.background = '#2563eb';
+      $('tabRegister').style.background = '#555';
+      $('submitBtn').textContent = 'Đăng nhập';
+    };
+    $('tabRegister').onclick = () => {
+      mode = 'register';
+      $('tabRegister').style.background = '#2563eb';
+      $('tabLogin').style.background = '#555';
+      $('submitBtn').textContent = 'Đăng ký';
+    };
+
+    $('submitBtn').onclick = async () => {
+      const username = $('username').value.trim();
+      const password = $('password').value;
+      $('msg').textContent = '';
+      const url = mode === 'login' ? '/api/login' : '/api/register';
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include'
+      });
+      const data = await r.json();
+      if (!r.ok) { $('msg').textContent = data.error; return; }
+      location.href = 'index.html';
+    };
+  </script>
+</body>
+</html>
