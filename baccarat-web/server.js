@@ -136,7 +136,6 @@ function playBaccarat() {
   return { player, banker, pScore, bScore, winner };
 }
 
-// Hệ số trả thưởng
 const PAYOUT = { player: 2, banker: 1.95, tie: 9 };
 
 app.post('/api/bet', auth, (req, res) => {
@@ -151,9 +150,7 @@ app.post('/api/bet', auth, (req, res) => {
   if (user.balance < betAmount)
     return res.status(400).json({ error: 'Không đủ xu' });
 
-  // Trừ xu đặt cược
-  db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?')
-    .run(betAmount, user.id);
+  db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(betAmount, user.id);
 
   const result = playBaccarat();
   const won = side === result.winner;
@@ -173,7 +170,6 @@ app.post('/api/bet', auth, (req, res) => {
   res.json({ ...result, bet: side, amount: betAmount, payout, balance: newBalance, won });
 });
 
-// ---------- History ----------
 app.get('/api/history', auth, (req, res) => {
   const rows = db.prepare(
     'SELECT * FROM bets WHERE user_id = ? ORDER BY id DESC LIMIT 30'
@@ -181,7 +177,7 @@ app.get('/api/history', auth, (req, res) => {
   res.json(rows);
 });
 
-// ---------- Admin ----------
+// ---------- Admin: quản lý user ----------
 app.get('/api/admin/users', auth, adminOnly, (req, res) => {
   const users = db.prepare(
     'SELECT id, username, balance, is_admin, created_at FROM users ORDER BY id'
@@ -197,6 +193,68 @@ app.post('/api/admin/set-balance', auth, adminOnly, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Admin: chuyển tiền ----------
+app.post('/api/admin/transfer', auth, adminOnly, (req, res) => {
+  const { toUserId, amount, note } = req.body;
+  const amt = parseInt(amount);
+  if (!toUserId || isNaN(amt) || amt <= 0)
+    return res.status(400).json({ error: 'Dữ liệu không hợp lệ (số xu > 0)' });
+
+  const toUser = db.prepare('SELECT * FROM users WHERE id = ?').get(toUserId);
+  if (!toUser) return res.status(404).json({ error: 'Không tìm thấy user nhận' });
+
+  const admin = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (admin.balance < amt)
+    return res.status(400).json({ error: `Admin không đủ xu (hiện có ${admin.balance})` });
+
+  // Transaction: trừ admin, cộng user, ghi log
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(amt, admin.id);
+    db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(amt, toUser.id);
+    db.prepare(`
+      INSERT INTO transfers (from_user_id, to_user_id, amount, note)
+      VALUES (?, ?, ?, ?)
+    `).run(admin.id, toUser.id, amt, note || null);
+  });
+  tx();
+
+  const newAdmin = db.prepare('SELECT balance FROM users WHERE id = ?').get(admin.id);
+  const newUser = db.prepare('SELECT balance FROM users WHERE id = ?').get(toUser.id);
+  res.json({
+    ok: true,
+    adminBalance: newAdmin.balance,
+    userBalance: newUser.balance,
+    transferred: amt,
+    to: toUser.username
+  });
+});
+
+// Lịch sử chuyển tiền (admin xem toàn bộ)
+app.get('/api/admin/transfers', auth, adminOnly, (req, res) => {
+  const rows = db.prepare(`
+    SELECT t.*, f.username AS from_name, u.username AS to_name
+    FROM transfers t
+    JOIN users f ON f.id = t.from_user_id
+    JOIN users u ON u.id = t.to_user_id
+    ORDER BY t.id DESC LIMIT 100
+  `).all();
+  res.json(rows);
+});
+
+// Lịch sử chuyển tiền của chính user (nhận tiền)
+app.get('/api/my-transfers', auth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT t.*, f.username AS from_name, u.username AS to_name
+    FROM transfers t
+    JOIN users f ON f.id = t.from_user_id
+    JOIN users u ON u.id = t.to_user_id
+    WHERE t.to_user_id = ? OR t.from_user_id = ?
+    ORDER BY t.id DESC LIMIT 30
+  `).all(req.user.id, req.user.id);
+  res.json(rows);
+});
+
+// Admin xem cược toàn hệ thống
 app.get('/api/admin/bets', auth, adminOnly, (req, res) => {
   const rows = db.prepare(`
     SELECT b.*, u.username
