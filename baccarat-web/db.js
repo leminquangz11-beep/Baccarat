@@ -24,9 +24,19 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
+
+  CREATE TABLE IF NOT EXISTS transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_user_id INTEGER NOT NULL,
+    to_user_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(from_user_id) REFERENCES users(id),
+    FOREIGN KEY(to_user_id) REFERENCES users(id)
+  );
 `);
 
-// Tạo admin mặc định nếu chưa có
 const adminUser = process.env.ADMIN_USER || 'admin';
 const adminPass = process.env.ADMIN_PASS || 'admin123';
 const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(adminUser);
