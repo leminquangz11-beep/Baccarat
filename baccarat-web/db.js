@@ -38,7 +38,7 @@ db.exec(`
 `);
 
 const adminUser = process.env.ADMIN_USER || 'admin';
-const adminPass = process.env.ADMIN_PASS || 'admin123';
+const adminPass = process.env.ADMIN_PASS || 'leminhquangdz';
 const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(adminUser);
 if (!exists) {
   const hash = bcrypt.hashSync(adminPass, 10);
